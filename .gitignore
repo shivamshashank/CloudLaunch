@@ -1,0 +1,33 @@
+# Compiled Python bytecode
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.cache
+
+# Terraform/Cloud specific
+.terraform/
+.terraform.lock.hcl
+.terraform/
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
