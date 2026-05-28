@@ -85,7 +85,11 @@ export default function DeploymentsList() {
         { event: "INSERT", schema: "public", table: "deployment_logs" },
         (payload) => {
           if (payload.new.deployment_id === selectedId) {
-            setLogs((prev) => [...prev, payload.new as DeploymentLog]);
+            setLogs((prev) => {
+              // Avoid duplicates
+              if (prev.some((log) => log.id === payload.new.id)) return prev;
+              return [...prev, payload.new as DeploymentLog];
+            });
           }
         }
       )
@@ -97,6 +101,10 @@ export default function DeploymentsList() {
             setDeployments((prev) => 
               prev.map((d) => (d.id === payload.new.id ? { ...d, ...payload.new } : d))
             );
+            if (payload.new.status === "deployed" || payload.new.status === "failed" || payload.new.status === "destroyed") {
+              setIsProcessing(false);
+              loadDeployments();
+            }
           }
         }
       )
@@ -116,41 +124,67 @@ export default function DeploymentsList() {
     });
   };
 
-  // Teardown simulation
+  const deleteDbLogs = async () => {
+    if (!selectedId) return;
+    const { error } = await supabase.from("deployment_logs").delete().eq("deployment_id", selectedId);
+    if (error) {
+      alert(`Failed to delete logs: ${error.message}`);
+    } else {
+      setLogs([]);
+    }
+  };
+
+  const handleDeleteRecord = async (depId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this environment record and all associated logs from the database?")) return;
+
+    try {
+      setIsProcessing(true);
+      const { error } = await supabase.from("deployments").delete().eq("id", depId);
+      if (error) {
+        alert(`Failed to delete record: ${error.message}`);
+      } else {
+        setDeployments((prev) => prev.filter((d) => d.id !== depId));
+        if (selectedId === depId) {
+          setSelectedId(null);
+          setLogs([]);
+        }
+      }
+    } catch (err: any) {
+      alert(`Delete Error: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+      loadDeployments();
+    }
+  };
+
+  // Teardown simulation calling real AWS EC2 Terminate API on backend
   const handleDestroy = async (depId: string) => {
     if (!confirm("Are you absolutely sure you want to tear down and destroy all AWS resources for this EKS cluster?")) return;
 
     setIsProcessing(true);
     setLogs([]);
 
-    await supabase.from("deployments").update({ status: "destroying" }).eq("id", depId);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
 
-    const steps = [
-      { delay: 1000, level: "WARN" as const, msg: "WARNING: Destruction pipeline triggered for active environment!" },
-      { delay: 1500, level: "INFO" as const, msg: "Connecting AWS EKS cluster endpoints to withdraw active GitOps pipelines..." },
-      { delay: 2000, level: "INFO" as const, msg: "Suspending GitOps auto-synchronization controllers on ArgoCD server..." },
-      { delay: 1500, level: "SUCCESS" as const, msg: "ArgoCD auto-sync status: INACTIVE." },
-      { delay: 2500, level: "INFO" as const, msg: "Destroying EC2 nodes, security policy groups, and VPC subnets..." },
-      { delay: 2000, level: "INFO" as const, msg: "aws_instance.app_nodes: Destroying compute instance..." },
-      { delay: 2500, level: "SUCCESS" as const, msg: "aws_instance.app_nodes: Destruction complete after 12s." },
-      { delay: 2000, level: "INFO" as const, msg: "aws_security_group.app_sg: Tearing down egress policies..." },
-      { delay: 1500, level: "SUCCESS" as const, msg: "aws_security_group.app_sg: Destruction complete." },
-      { delay: 2500, level: "INFO" as const, msg: "module.vpc.aws_vpc.this: Tearing down public/private subnet routes..." },
-      { delay: 2000, level: "SUCCESS" as const, msg: "module.vpc.aws_vpc.this: VPC networks destroyed successfully." },
-      { delay: 1000, statusUpdate: "destroyed", level: "SUCCESS" as const, msg: "Destruction complete! Resources: 0 added, 0 changed, 9 destroyed." }
-    ];
-
-    for (const step of steps) {
-      await new Promise((resolve) => setTimeout(resolve, step.delay));
-      await writeLog(depId, step.level, step.msg);
-      
-      if (step.statusUpdate) {
-        await supabase.from("deployments").update({ status: step.statusUpdate }).eq("id", depId);
+      const response = await fetch("/api/destroy", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ deploymentId: depId })
+      });
+      const result = await response.json();
+      if (!result.success) {
+        alert(`Failed to trigger physical resource teardown: ${result.error}`);
+        setIsProcessing(false);
       }
+    } catch (err: any) {
+      alert(`Teardown Request Error: ${err.message}`);
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
-    loadDeployments();
   };
 
   const getStatusBadge = (status: Deployment["status"]) => {
@@ -278,7 +312,17 @@ export default function DeploymentsList() {
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             ) : (
-                              <span className="text-slate-600 font-mono text-[9px] select-none uppercase">None</span>
+                              <button
+                                disabled={isProcessing}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteRecord(d.id);
+                                }}
+                                className="p-2 rounded bg-slate-900 hover:bg-rose-950 border border-slate-800 hover:border-rose-500 text-slate-400 hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Delete Environment Record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             )}
                           </td>
                         </tr>
@@ -298,6 +342,7 @@ export default function DeploymentsList() {
                 logs={logs} 
                 onClear={() => setLogs([])} 
                 title={`Terminal Console: ${selectedDeployment?.name || "Logs"}`}
+                onDeleteDbLogs={deleteDbLogs}
               />
             ) : (
               <div className="bg-slate-950 border border-slate-850 rounded-2xl h-[400px] flex items-center justify-center text-xs font-mono text-slate-600 select-none">

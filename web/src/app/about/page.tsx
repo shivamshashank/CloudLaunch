@@ -2,7 +2,7 @@
 
 import React from "react";
 import Navigation from "../../components/Navigation";
-import { Cpu, Server, GitBranch, Heart, BookOpen, Layers } from "lucide-react";
+import { Cpu, Server, GitBranch, Heart, BookOpen, Layers, Shield } from "lucide-react";
 
 export default function About() {
   return (
@@ -84,6 +84,80 @@ export default function About() {
             <p className="text-xs text-slate-400 leading-relaxed">
               Developed by **Shivam Shashank** as a showcase of cloud-native orchestration. Dedicated to bridging the gap between infrastructure automation, developer experience (DevEx), and site reliability engineering (SRE).
             </p>
+          </div>
+        </div>
+
+        {/* Minimum AWS IAM Credentials Section */}
+        <div className="bg-slate-900/40 border border-slate-900 rounded-2xl p-6 space-y-6">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
+            <Shield className="w-5 h-5 text-cyan-400 animate-pulse" />
+            <h2 className="text-base font-bold text-white tracking-wide">AWS IAM Minimum Policy Requirements</h2>
+          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            To configure AWS and allow CloudLaunch to safely spin up VPC networking, EBS storage volumes, EC2 computes, and IAM profiles locally on your host machine, you must configure a least-privilege IAM policy. Copy and attach the following JSON statement to your AWS IAM user or role:
+          </p>
+          <div className="bg-black/90 p-4 rounded-xl border border-slate-850 font-mono text-[10px] leading-relaxed max-h-[300px] overflow-y-auto text-cyan-300 whitespace-pre scrollbar-thin scrollbar-thumb-slate-850">
+{`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudLaunchLeastPrivilegePermissions",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateVpc",
+        "ec2:DeleteVpc",
+        "ec2:DescribeVpcs",
+        "ec2:ModifyVpcAttribute",
+        "ec2:CreateSubnet",
+        "ec2:DeleteSubnet",
+        "ec2:DescribeSubnets",
+        "ec2:ModifySubnetAttribute",
+        "ec2:CreateInternetGateway",
+        "ec2:DeleteInternetGateway",
+        "ec2:DescribeInternetGateways",
+        "ec2:AttachInternetGateway",
+        "ec2:DetachInternetGateway",
+        "ec2:CreateRouteTable",
+        "ec2:DeleteRouteTable",
+        "ec2:DescribeRouteTables",
+        "ec2:AssociateRouteTable",
+        "ec2:DisassociateRouteTable",
+        "ec2:CreateRoute",
+        "ec2:DeleteRoute",
+        "ec2:CreateSecurityGroup",
+        "ec2:DeleteSecurityGroup",
+        "ec2:DescribeSecurityGroups",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:CreateNatGateway",
+        "ec2:DeleteNatGateway",
+        "ec2:DescribeNatGateways",
+        "ec2:AllocateAddress",
+        "ec2:ReleaseAddress",
+        "ec2:DescribeAddresses",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:GetRole",
+        "iam:PassRole",
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:GetInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:ListAttachedRolePolicies"
+      ],
+      "Resource": "*"
+    }
+  ]
+}`}
           </div>
         </div>
 

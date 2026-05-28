@@ -53,7 +53,7 @@ CREATE POLICY "Users can view their own deployments"
 
 CREATE POLICY "Users can update their own deployments" 
     ON public.deployments FOR UPDATE 
-    USING (auth.uid() = user_id OR user_id IS NULL);
+    USING (auth.uid() = user_id OR user_id IS NULL OR auth.uid() IS NULL);
 
 CREATE POLICY "Users can delete their own deployments" 
     ON public.deployments FOR DELETE 
@@ -76,7 +76,7 @@ CREATE POLICY "Users can insert logs for their own deployments"
         EXISTS (
             SELECT 1 FROM public.deployments 
             WHERE public.deployments.id = public.deployment_logs.deployment_id 
-            AND (public.deployments.user_id = auth.uid() OR public.deployments.user_id IS NULL)
+            AND (public.deployments.user_id = auth.uid() OR public.deployments.user_id IS NULL OR auth.uid() IS NULL)
         )
     );
 
@@ -97,7 +97,7 @@ CREATE POLICY "Users can insert costs for their own deployments"
         EXISTS (
             SELECT 1 FROM public.deployments 
             WHERE public.deployments.id = public.deployment_costs.deployment_id 
-            AND (public.deployments.user_id = auth.uid() OR public.deployments.user_id IS NULL)
+            AND (public.deployments.user_id = auth.uid() OR public.deployments.user_id IS NULL OR auth.uid() IS NULL)
         )
     );
 

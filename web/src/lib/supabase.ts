@@ -12,6 +12,13 @@ export interface Deployment {
     cidr: string;
     public_subnets: number;
     private_subnets: number;
+    instance_id?: string;
+    security_group_id?: string;
+    public_ip?: string;
+    public_dns?: string;
+    grafana_url?: string;
+    prometheus_url?: string;
+    loki_url?: string;
   };
   security_groups: Array<{
     port: number;

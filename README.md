@@ -19,6 +19,41 @@ CloudLaunch allows users to configure AWS infrastructure from a website, review
 cost and Terraform plan output, deploy resources with one click, monitor
 logs/status, and destroy infrastructure safely.
 
+## Current MVP Implementation
+
+This repository now contains the first working control-plane shape for the SaaS:
+
+- Next.js dashboard for AWS onboarding, deployment creation, live logs, and
+  destroy actions.
+- Supabase tables for deployments, deployment logs, costs, AWS role
+  configuration, deployment jobs, and generated artifacts.
+- AWS role verification through cross-account `AssumeRole` with ExternalId.
+- Deployment API that creates an apply job, renders a Terraform `main.tf`
+  artifact, launches an EC2 observability host in the user's AWS account, and
+  streams progress into Supabase Realtime.
+- EC2 bootstrap script that installs Docker and starts Prometheus, Grafana,
+  Loki, Promtail, and node-exporter.
+- Secure log ingest endpoint for EC2 bootstrap logs.
+- Destroy API that terminates the EC2 instance and cleans up the generated
+  security group.
+
+Supabase is used as the control plane and realtime event stream. Long-running
+infrastructure work is handled by the deployment engine code under
+`web/src/lib/deployment/`.
+
+Required runtime environment variables:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+CLOUDLAUNCH_PUBLIC_URL=
+CLOUDLAUNCH_LOG_INGEST_TOKEN=
+```
+
+`CLOUDLAUNCH_PUBLIC_URL` must be reachable from the EC2 instance so cloud-init
+can stream bootstrap logs back to `/api/log-ingest`.
+
 ---
 
 ## 📖 Project Overview

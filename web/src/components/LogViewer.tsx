@@ -1,25 +1,34 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { Terminal, Download, Trash2, ArrowDown } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Terminal, Download, Trash2, Copy, Check } from "lucide-react";
 import { DeploymentLog } from "../lib/supabase";
 
 interface LogViewerProps {
   logs: DeploymentLog[];
   onClear: () => void;
   title?: string;
+  onDeleteDbLogs?: () => Promise<void>;
 }
 
-export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine Logs" }: LogViewerProps) {
-  const [autoScroll, setAutoScroll] = useState(true);
-  const terminalEndRef = useRef<HTMLDivElement>(null);
+export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine Logs", onDeleteDbLogs }: LogViewerProps) {
+  const [copied, setCopied] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto scroll logic
   useEffect(() => {
-    if (autoScroll) {
-      terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [logs, autoScroll]);
+  }, [logs]);
+
+  const handleCopy = () => {
+    const rawText = logs
+      .map((log) => `[${new Date(log.timestamp).toLocaleTimeString()}] [${log.level}] ${log.message}`)
+      .join("\n");
+    navigator.clipboard.writeText(rawText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleDownload = () => {
     const rawText = logs
@@ -64,17 +73,14 @@ export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine L
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {/* Auto Scroll Toggle */}
+          {/* Copy Logs */}
           <button
-            onClick={() => setAutoScroll(!autoScroll)}
-            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded border transition-all cursor-pointer ${
-              autoScroll
-                ? "bg-cyan-950/40 border-cyan-800 text-cyan-400"
-                : "bg-slate-800/40 border-slate-700/50 text-slate-500"
-            }`}
+            disabled={logs.length === 0}
+            onClick={handleCopy}
+            className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-slate-400 hover:text-white transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+            title="Copy Logs"
           >
-            <ArrowDown className={`w-3 h-3 ${autoScroll ? "animate-bounce" : ""}`} />
-            Scroll
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
 
           {/* Download Logs */}
@@ -90,9 +96,17 @@ export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine L
           {/* Clear Logs */}
           <button
             disabled={logs.length === 0}
-            onClick={onClear}
+            onClick={async () => {
+              if (onDeleteDbLogs) {
+                if (confirm("Are you sure you want to permanently delete all logs for this deployment from the remote database?")) {
+                  await onDeleteDbLogs();
+                }
+              } else {
+                onClear();
+              }
+            }}
             className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-slate-400 hover:text-rose-400 transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Clear Logs"
+            title="Delete Logs from Database"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -100,7 +114,7 @@ export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine L
       </div>
 
       {/* Terminal Screen */}
-      <div className="flex-1 p-5 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-2 bg-black/90 scrollbar-thin scrollbar-thumb-slate-900 select-text">
+      <div ref={containerRef} className="flex-1 p-5 overflow-y-auto font-mono text-[11px] leading-relaxed space-y-2 bg-black/90 scrollbar-thin scrollbar-thumb-slate-900 select-text">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-1 select-none">
             <span className="font-semibold text-xs">No active processes running.</span>
@@ -124,7 +138,6 @@ export default function LogViewer({ logs, onClear, title = "CloudLaunch Engine L
             </div>
           ))
         )}
-        <div ref={terminalEndRef} />
       </div>
     </div>
   );
